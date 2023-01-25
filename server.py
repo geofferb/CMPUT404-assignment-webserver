@@ -117,7 +117,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
         if otherFields:
             for field, value in otherFields.items():
                 header += f"{field}: {value}\r\n"
-        rq = bytearray(header + body, 'utf-8')
+        rq = bytearray(header + "\r\n" + body, 'utf-8')
         # print(rq)
         self.request.sendall(rq)
 
