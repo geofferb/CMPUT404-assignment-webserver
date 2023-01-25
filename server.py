@@ -3,6 +3,7 @@ import socketserver
 # https://stackoverflow.com/questions/39090366/how-to-parse-raw-http-request-in-python-3
 from email.parser import BytesParser
 from email.utils import formatdate
+import os.path
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,11 +42,18 @@ class MyWebServer(socketserver.BaseRequestHandler):
         # print("Got a request of:\n%s\n" % data)
         # parse the GET request to get the status line and header as dictionaries
         statusLine, header = self.parseRequest(data)
+        prefix = 'www'
+        safepath = os.path.realpath(prefix)
 
         if (statusLine['method'] == "GET"):
             # prepend www to the requested path
-            filepath = f'www{statusLine["path"]}'
+            filepath = prefix + statusLine["path"]
+
             try:
+                print(os.path.realpath(filepath))
+                if os.path.commonprefix((os.path.realpath(filepath), safepath)) != safepath:
+                    print("Invalid path!")
+                    raise FileNotFoundError
                 with open(filepath) as file:
                     self.serveFile(file, filepath)
             except FileNotFoundError:
