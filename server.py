@@ -1,14 +1,16 @@
-#  coding: utf-8 
+#  coding: utf-8
 import socketserver
-
+# https://stackoverflow.com/questions/39090366/how-to-parse-raw-http-request-in-python-3
+from email.parser import BytesParser
+from email.utils import formatdate
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,14 +27,86 @@ import socketserver
 # run: python freetests.py
 
 # try: curl -v -X GET http://127.0.0.1:8080/
+# constants
+TEXT_HTML = "text/html"
+TEXT_CSS = "text/css"
+CONTENT_TYPE = "Content-Type"
 
 
 class MyWebServer(socketserver.BaseRequestHandler):
-    
+
     def handle(self):
-        self.data = self.request.recv(1024).strip()
-        print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+
+        data = self.request.recv(1024).strip()
+        # print("Got a request of:\n%s\n" % data)
+        # parse the GET request to get the status line and header as dictionaries
+        statusLine, header = self.parseRequest(data)
+
+        if (statusLine['method'] == "GET"):
+            # prepend www to the requested path
+            filepath = f'www{statusLine["path"]}'
+            try:
+                with open(filepath) as file:
+                    self.serveFile(file, filepath)
+            except FileNotFoundError:
+                self.send404()
+            except IsADirectoryError:
+                if statusLine["path"][-1] != "/":
+                    self.send301(
+                        statusLine["path"]+'/')
+                    return
+                filepath += "index.html"
+                with open(filepath) as file:
+                    self.serveFile(file, filepath)
+
+    def parseRequest(self, data):
+        lineDict = {}
+
+        requestLine, headers = data.split(b'\r\n', 1)
+        lineDict['method'], lineDict['path'], lineDict['ver'] = requestLine.decode('utf-8').split(
+            " ")
+        headerDict = BytesParser().parsebytes(headers)
+        print(lineDict)
+        body = {}
+        return (lineDict, headerDict)
+
+    def send301(self, path):
+        print(301)
+        self.sendResponse("301 Moved Permanently",
+                          otherFields={"Location": path})
+
+    def send404(self):
+        print(404)
+        message = "<!DOCTYPE html>\n<html>\n<body>\n<p>404 Not Found</p>\n</body>\n</html> \n"
+
+        self.sendResponse("404 Not Found", body=message,
+                          otherFields={CONTENT_TYPE: TEXT_HTML})
+
+    def serveFile(self, file, filePath):
+        print("200")
+        fileExt = filePath.split('.')[-1]
+        print(fileExt)
+        myType = ""
+        if fileExt == 'html':
+            myType = TEXT_HTML
+        elif fileExt == 'css':
+            myType = TEXT_CSS
+        contents = file.read()
+
+        self.sendResponse("200 OK", body=contents,
+                          otherFields={CONTENT_TYPE: myType})
+
+    def sendResponse(self, code, body="", otherFields={}):
+
+        date = formatdate(usegmt=True)
+        header = f"HTTP/1.1 {code}\r\nDate: {date}\r\n"
+        if otherFields:
+            for field, value in otherFields.items():
+                header += f"{field}: {value}\r\n"
+        rq = bytearray(header + body, 'utf-8')
+        # print(rq)
+        self.request.sendall(rq)
+
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
