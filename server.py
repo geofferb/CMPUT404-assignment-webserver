@@ -66,6 +66,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
                 filepath += "index.html"
                 with open(filepath) as file:
                     self.serveFile(file, filepath)
+        else:
+            self.send405()
 
     def parseRequest(self, data):
         lineDict = {}
@@ -89,6 +91,10 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
         self.sendResponse("404 Not Found", body=message,
                           otherFields={CONTENT_TYPE: TEXT_HTML})
+
+    def send405(self):
+        print(405)
+        self.sendResponse("405 Method Not Allowed")
 
     def serveFile(self, file, filePath):
         print("200")
