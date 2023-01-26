@@ -64,8 +64,11 @@ class MyWebServer(socketserver.BaseRequestHandler):
                         statusLine["path"]+'/')
                     return
                 filepath += "index.html"
-                with open(filepath) as file:
-                    self.serveFile(file, filepath)
+                try:
+                    with open(filepath) as file:
+                        self.serveFile(file, filepath)
+                except FileNotFoundError:
+                    self.send404()
         else:
             self.send405()
 
@@ -105,6 +108,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
             myType = TEXT_HTML
         elif fileExt == 'css':
             myType = TEXT_CSS
+
         contents = file.read()
 
         self.sendResponse("200 OK", body=contents,
