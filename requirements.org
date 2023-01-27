@@ -46,11 +46,11 @@
 
 ** Restrictions
    - [X] Use Python3
-   - [ ] Must run on Ubuntu (Use the undergrad lab machines, for example the ones in CSC 2-29 or install an Ubuntu VM to check this)
-   - [ ] License your webserver properly (use an OSI approved license)
+   - [X] Must run on Ubuntu (Use the undergrad lab machines, for example the ones in CSC 2-29 or install an Ubuntu VM to check this)
+   - [X] License your webserver properly (use an OSI approved license)
      - Put your name or some identifier (not your student number) on it!
    - [X] You cannot use a Web Server library
-   - [ ] Screenshots must be named deep.png and root.png in the root of the repository
+   - [X] Screenshots must be named deep.png and root.png in the root of the repository
 
 ** Recommendations
    - Use the server.py skeleton. Handling sockets yourself is not
