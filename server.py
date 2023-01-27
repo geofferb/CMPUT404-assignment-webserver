@@ -108,6 +108,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
             myType = TEXT_HTML
         elif fileExt == 'css':
             myType = TEXT_CSS
+        else: # for unknown files
+            myType = "application/octet-stream" 
 
         contents = file.read()
 
