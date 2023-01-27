@@ -1,10 +1,9 @@
 #  coding: utf-8
 import socketserver
-# https://stackoverflow.com/questions/39090366/how-to-parse-raw-http-request-in-python-3
 from email.parser import BytesParser
 from email.utils import formatdate
 import os.path
-# Copyright 2013 Abram Hindle, Eddie Antonio Santos
+# Copyright 2023 Abram Hindle, Eddie Antonio Santos, Geoffery Banh
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,6 +41,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
         # print("Got a request of:\n%s\n" % data)
         # parse the GET request to get the status line and header as dictionaries
         statusLine, header = self.parseRequest(data)
+        if None in (statusLine, header):  # if nothing to parse
+            return
         prefix = 'www'
         safepath = os.path.realpath(prefix)
 
@@ -51,18 +52,25 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
             try:
                 # print(os.path.realpath(filepath))
+
+                # prevent path traversal attacks
                 if os.path.commonprefix((os.path.realpath(filepath), safepath)) != safepath:
                     print("Invalid path!")
                     raise FileNotFoundError
+
+                # open file with path from request
                 with open(filepath) as file:
                     self.serveFile(file, filepath)
             except FileNotFoundError:
                 self.send404()
             except IsADirectoryError:
+
+                # append slash to directory if one is not present by redirecting
                 if statusLine["path"][-1] != "/":
                     self.send301(
                         statusLine["path"]+'/')
                     return
+                # serve index if a directory is requested
                 filepath += "index.html"
                 try:
                     with open(filepath) as file:
@@ -75,10 +83,16 @@ class MyWebServer(socketserver.BaseRequestHandler):
     def parseRequest(self, data):
         lineDict = {}
 
-        requestLine, headers = data.split(b'\r\n', 1)
+        # split request line from headers
+        try:
+            requestLine, headers = data.split(b'\r\n', 1)
+        except ValueError:
+            print(data)
+            return (None, None)
+
         lineDict['method'], lineDict['path'], lineDict['ver'] = requestLine.decode('utf-8').split(
             " ")
-        headerDict = BytesParser().parsebytes(headers)
+        headerDict = BytesParser().parsebytes(headers)  # parse headers into a dictionary
         body = {}
         return (lineDict, headerDict)
 
@@ -122,7 +136,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
     def sendResponse(self, code, body="", otherFields={}):
 
-        date = formatdate(usegmt=True)
+        date = formatdate(usegmt=True)  # HTTP formatted data
         header = f"HTTP/1.1 {code}\r\nDate: {date}\r\n"
         if otherFields:
             for field, value in otherFields.items():
