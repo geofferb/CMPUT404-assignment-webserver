@@ -50,7 +50,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
             filepath = prefix + statusLine["path"]
 
             try:
-                print(os.path.realpath(filepath))
+                # print(os.path.realpath(filepath))
                 if os.path.commonprefix((os.path.realpath(filepath), safepath)) != safepath:
                     print("Invalid path!")
                     raise FileNotFoundError
@@ -79,7 +79,6 @@ class MyWebServer(socketserver.BaseRequestHandler):
         lineDict['method'], lineDict['path'], lineDict['ver'] = requestLine.decode('utf-8').split(
             " ")
         headerDict = BytesParser().parsebytes(headers)
-        print(lineDict)
         body = {}
         return (lineDict, headerDict)
 
@@ -100,18 +99,23 @@ class MyWebServer(socketserver.BaseRequestHandler):
         self.sendResponse("405 Method Not Allowed")
 
     def serveFile(self, file, filePath):
-        print("200")
+        print(200)
         fileExt = filePath.split('.')[-1]
-        print(fileExt)
         myType = ""
         if fileExt == 'html':
             myType = TEXT_HTML
         elif fileExt == 'css':
             myType = TEXT_CSS
-        else: # for unknown files
-            myType = "application/octet-stream" 
-
-        contents = file.read()
+        else:  # for unknown files
+            myType = "application/octet-stream"
+        try:
+            contents = file.read()
+        except UnicodeDecodeError:
+            # re open file as binary and try again
+            file.close()
+            with open(file.name, "rb") as file:
+                contents = file.read()
+        print(CONTENT_TYPE, ':', myType)
 
         self.sendResponse("200 OK", body=contents,
                           otherFields={CONTENT_TYPE: myType})
@@ -123,7 +127,12 @@ class MyWebServer(socketserver.BaseRequestHandler):
         if otherFields:
             for field, value in otherFields.items():
                 header += f"{field}: {value}\r\n"
-        rq = bytearray(header + "\r\n" + body, 'utf-8')
+
+        # if body is not in binary format, it needs to be converted
+        if not isinstance(body, (bytes, bytearray)):
+            body = bytearray(body, 'utf-8')
+
+        rq = bytearray(header + "\r\n", 'utf-8') + body
         # print(rq)
         self.request.sendall(rq)
 
